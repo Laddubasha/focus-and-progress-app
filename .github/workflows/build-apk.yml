@@ -22,27 +22,30 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Find Flutter Project Directory
-        id: find-dir
+      - name: Create or Fix Flutter Project Structure
         run: |
-          # Looks for pubspec.yaml and extracts its folder path
-          DIR=$(dirname $(find . -name "pubspec.yaml" -print -quit))
-          if [ "$DIR" = "." ] || [ -z "$DIR" ]; then
-            echo "path=." >> $GITHUB_OUTPUT
-          else
-            echo "path=$DIR" >> $GITHUB_OUTPUT
+          # Checks if pubspec.yaml exists. If not, it builds a fresh app framework.
+          if [ ! -f "pubspec.yaml" ] && [ ! -f "lib/main.dart" ]; then
+            echo "No project found. Generating fresh Flutter template..."
+            flutter create --platforms=android .
+            
+            # Installs the missing Google AI package to the fresh template
+            flutter pub add google_generative_ai
+            
+            # If you uploaded a lone main.dart file, move it to the right place
+            if [ -f "main.dart" ]; then
+              mv main.dart lib/main.dart
+            fi
           fi
 
       - name: Install dependencies
-        working-directory: ${{ steps.find-dir.outputs.path }}
         run: flutter pub get
 
       - name: Build APK
-        working-directory: ${{ steps.find-dir.outputs.path }}
         run: flutter build apk --release
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: my-ai-app
-          path: ${{ steps.find-dir.outputs.path }}/build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
