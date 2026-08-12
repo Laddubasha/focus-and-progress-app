@@ -2,8 +2,8 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ] # Triggers whenever you save code
-  workflow_dispatch: # Allows you to press a button to manually build it
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -22,14 +22,27 @@ jobs:
         with:
           channel: 'stable'
 
+      - name: Find Flutter Project Directory
+        id: find-dir
+        run: |
+          # Looks for pubspec.yaml and extracts its folder path
+          DIR=$(dirname $(find . -name "pubspec.yaml" -print -quit))
+          if [ "$DIR" = "." ] || [ -z "$DIR" ]; then
+            echo "path=." >> $GITHUB_OUTPUT
+          else
+            echo "path=$DIR" >> $GITHUB_OUTPUT
+          fi
+
       - name: Install dependencies
+        working-directory: ${{ steps.find-dir.outputs.path }}
         run: flutter pub get
 
       - name: Build APK
+        working-directory: ${{ steps.find-dir.outputs.path }}
         run: flutter build apk --release
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: my-ai-app
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: ${{ steps.find-dir.outputs.path }}/build/app/outputs/flutter-apk/app-release.apk
